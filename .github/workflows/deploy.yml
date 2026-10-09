@@ -1,23 +1,33 @@
-name: CI/CD Pipeline Deployment
+name: Build, Push, and Deploy Pipeline
 
 on:
   push:
-    branches: [ "main" ] # Ganti jika nama branch utama Anda bukan 'main'
+    branches: [ "main" ]
+
+env:
+  REGISTRY: 192.168.110.206:5000
+  IMAGE_NAME: my-app
 
 jobs:
-  deploy-to-k8s:
-    runs-on: self-hosted # Mengarahkan job ke VM Runner VMware Anda
+  build-and-deploy:
+    runs-on: self-hosted
 
     steps:
-    - name: Checkout Repository
+    - name: Checkout Code
       uses: actions/checkout@v4
 
-    - name: Test Connectivity to Kubernetes Cluster
+    - name: Build Docker Image
       run: |
-        kubectl get nodes
-        kubectl cluster-info
+        docker build -t $REGISTRY/$IMAGE_NAME:${{ github.sha }} .
+        docker tag $REGISTRY/$IMAGE_NAME:${{ github.sha }} $REGISTRY/$IMAGE_NAME:latest
 
-    - name: Deploy Test Nginx Application
+    - name: Push Image to Private Registry
       run: |
-        kubectl create deployment nginx-test --image=nginx:alpine --dry-run=client -o yaml | kubectl apply -f -
-        kubectl rollout status deployment/nginx-test
+        docker push $REGISTRY/$IMAGE_NAME:${{ github.sha }}
+        docker push $REGISTRY/$IMAGE_NAME:latest
+
+    - name: Deploy to Kubernetes
+      run: |
+        # Set image baru pada deployment Kubernetes
+        kubectl create deployment my-app --image=$REGISTRY/$IMAGE_NAME:${{ github.sha }} --dry-run=client -o yaml | kubectl apply -f -
+        kubectl rollout status deployment/my-app
