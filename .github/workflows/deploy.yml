@@ -26,10 +26,14 @@ jobs:
         docker push $REGISTRY/$IMAGE_NAME:${{ github.sha }}
         docker push $REGISTRY/$IMAGE_NAME:latest
 
-    - name: Deploy to Kubernetes
+    - name: Deploy & Inject Secret to Kubernetes
       run: |
-        # Set image baru pada deployment Kubernetes
-        kubectl create deployment my-app --image=$REGISTRY/$IMAGE_NAME:${{ github.sha }} --dry-run=client -o yaml | kubectl apply -f -
-        kubectl rollout status deployment/my-app
+        # 1. Update image deployment
+        kubectl set image deployment/my-app my-app=$REGISTRY/$IMAGE_NAME:${{ github.sha }} || \
+        kubectl create deployment my-app --image=$REGISTRY/$IMAGE_NAME:${{ github.sha }}
 
-#=======
+        # 2. Inject environment variables dari Kubernetes Secret (db-credentials) ke Pod
+        kubectl set env deployment/my-app --from=secret/db-credentials
+
+        # 3. Tunggu rollout selesai
+        kubectl rollout status deployment/my-app
