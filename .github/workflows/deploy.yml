@@ -1,0 +1,23 @@
+name: CI/CD Pipeline Deployment
+
+on:
+  push:
+    branches: [ "main" ] # Ganti jika nama branch utama Anda bukan 'main'
+
+jobs:
+  deploy-to-k8s:
+    runs-on: self-hosted # Mengarahkan job ke VM Runner VMware Anda
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Test Connectivity to Kubernetes Cluster
+      run: |
+        kubectl get nodes
+        kubectl cluster-info
+
+    - name: Deploy Test Nginx Application
+      run: |
+        kubectl create deployment nginx-test --image=nginx:alpine --dry-run=client -o yaml | kubectl apply -f -
+        kubectl rollout status deployment/nginx-test
